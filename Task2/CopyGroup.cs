@@ -15,21 +15,51 @@ namespace Task2
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uIDocument = commandData.Application.ActiveUIDocument;
-            Document doc = uIDocument.Document;
+            try
+            {
+                UIDocument uIDocument = commandData.Application.ActiveUIDocument;
+                Document doc = uIDocument.Document;
 
-            Reference reference = uIDocument.Selection.PickObject(ObjectType.Element, "Выберите группу объектов");
-            Element element = doc.GetElement(reference);
-            Group group = element as Group;
+                GroupPickFilter groupPickFilter = new GroupPickFilter();
+                Reference reference = uIDocument.Selection.PickObject(ObjectType.Element, groupPickFilter, "Выберите группу объектов");
+                Element element = doc.GetElement(reference);
+                Group group = element as Group;
 
-            XYZ point = uIDocument.Selection.PickPoint("Выберите точку");
+                XYZ point = uIDocument.Selection.PickPoint("Выберите точку");
 
-            Transaction transaction = new Transaction(doc);
-            transaction.Start("Копирование группы объектов");
-            doc.Create.PlaceGroup(point, group.GroupType);
-            transaction.Commit();
+                Transaction transaction = new Transaction(doc);
+                transaction.Start("Копирование группы объектов");
+                doc.Create.PlaceGroup(point, group.GroupType);
+                transaction.Commit();
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            {
+                return Result.Cancelled;
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                return Result.Failed;
+            }
+            
 
             return Result.Succeeded;
+        }
+    }
+
+    public class GroupPickFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element elem)
+        {
+            if (elem.Category.Id.IntegerValue == (int)BuiltInCategory.OST_IOSModelGroups)
+                return true;
+            else
+                return false;
+        }
+
+        public bool AllowReference(Reference reference, XYZ position)
+        {
+            return false;
         }
     }
 }
