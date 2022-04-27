@@ -1,5 +1,6 @@
 ﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using System;
@@ -24,12 +25,21 @@ namespace Task2
                 Reference reference = uIDocument.Selection.PickObject(ObjectType.Element, groupPickFilter, "Выберите группу объектов");
                 Element element = doc.GetElement(reference);
                 Group group = element as Group;
+                XYZ groupCenter = GetElementCenter(group);
+                Room room = GetRoomByPoint(doc, groupCenter);
+                XYZ roomCenter = GetElementCenter(room);
+                XYZ offset = groupCenter - roomCenter;
+               
 
                 XYZ point = uIDocument.Selection.PickPoint("Выберите точку");
 
+                Room newRoom = GetRoomByPoint(doc, point);
+                XYZ newRoomCenter = GetElementCenter(newRoom);
+                XYZ insertPoint = offset + newRoomCenter;
+
                 Transaction transaction = new Transaction(doc);
                 transaction.Start("Копирование группы объектов");
-                doc.Create.PlaceGroup(point, group.GroupType);
+                doc.Create.PlaceGroup(insertPoint, group.GroupType);
                 transaction.Commit();
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
@@ -44,6 +54,30 @@ namespace Task2
             
 
             return Result.Succeeded;
+        }
+
+        public XYZ GetElementCenter(Element element)
+        {
+            BoundingBoxXYZ bounding = element.get_BoundingBox(null);
+            return (bounding.Max + bounding.Min) / 2;
+        }
+
+        public Room GetRoomByPoint(Document doc, XYZ point)
+        {
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            collector.OfCategory(BuiltInCategory.OST_Rooms);
+            foreach (Element e in collector)
+            {
+                Room room = e as Room;
+                if (room!=null)
+                {
+                    if (room.IsPointInRoom(point))
+                    {
+                        return room;
+                    }
+                }
+            }
+            return null;
         }
     }
 
